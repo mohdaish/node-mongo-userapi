@@ -58,58 +58,115 @@
       <input type="text" name="city" placeholder="City"><br>
       <input type="text" name="state" placeholder="State"><br>
       <input type="text" name="country" placeholder="Country"><br>
-      <input type="text" name="loginId" placeholder="8 char Login ID" required><br>
+      <input type="text" name="loginId" placeholder="Login ID (8 chars)" required><br>
       <input type="password" name="password" placeholder="Password" required><br>
       <button type="submit">Save</button>
+    
     </form>
+
+     <button id="viewUsersBtn" style="display:none; margin-top:10px;">
+      View Saved Users
+     </button>
   </div>
 <script>
-  $("#userForm").submit(function(e) {
+  $("#userForm").submit(function (e) {
     e.preventDefault();
 
+    // --- Regex patterns ---
+    const namePattern = /^[A-Za-z\s]+$/;
+    const cityStateCountryPattern = /^[A-Za-z\s]*$/;
+    const streetPattern = /^[A-Za-z0-9\s.,-]*$/;
+    const loginIdPattern = /^[a-zA-Z0-9]{8}$/; // exactly 8 alphanumeric
+    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{6,}$/;
+    const mobilePattern = /^[0-9]{10}$/;
+    const emailPattern = /^\S+@\S+\.\S+$/;
+
+    // --- Values ---
+    const firstName = $("input[name=firstName]").val();
+    const lastName = $("input[name=lastName]").val();
+    const mobile = $("input[name=mobile]").val();
+    const email = $("input[name=email]").val();
+    const street = $("input[name=street]").val();
+    const city = $("input[name=city]").val();
+    const state = $("input[name=state]").val();
+    const country = $("input[name=country]").val();
     const loginId = $("input[name=loginId]").val();
     const password = $("input[name=password]").val();
 
-    const loginIdPattern = /^[a-zA-Z0-9]{8}$/; // exactly 8 alphanumeric
-    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{6,}$/;
-
+    // --- Validation ---
+    if (!namePattern.test(firstName)) {
+      alert("First name can only contain alphabets.");
+      return;
+    }
+    if (!namePattern.test(lastName)) {
+      alert("Last name can only contain alphabets.");
+      return;
+    }
+    if (!mobilePattern.test(mobile)) {
+      alert("Mobile number must be 10 digits.");
+      return;
+    }
+    if (!emailPattern.test(email)) {
+      alert("Enter a valid email.");
+      return;
+    }
+    if (street && !streetPattern.test(street)) {
+      alert("Street contains invalid characters.");
+      return;
+    }
+    if (city && !cityStateCountryPattern.test(city)) {
+      alert("City can only contain alphabets.");
+      return;
+    }
+    if (state && !cityStateCountryPattern.test(state)) {
+      alert("State can only contain alphabets.");
+      return;
+    }
+    if (country && !cityStateCountryPattern.test(country)) {
+      alert("Country can only contain alphabets.");
+      return;
+    }
     if (!loginIdPattern.test(loginId)) {
       alert("Login ID must be exactly 8 alphanumeric characters.");
       return;
     }
-
     if (!passwordPattern.test(password)) {
-      alert("Password must be at least 6 characters with 1 uppercase, 1 lowercase, and 1 special character.");
+      alert(
+        "Password must be at least 6 characters with 1 uppercase, 1 lowercase, and 1 special character."
+      );
       return;
     }
 
+    // --- Data object ---
     const data = {
-      firstName: $("input[name=firstName]").val(),
-      lastName: $("input[name=lastName]").val(),
-      mobile: $("input[name=mobile]").val(),
-      email: $("input[name=email]").val(),
-      address: {
-        street: $("input[name=street]").val(),
-        city: $("input[name=city]").val(),
-        state: $("input[name=state]").val(),
-        country: $("input[name=country]").val()
-      },
+      firstName,
+      lastName,
+      mobile,
+      email,
+      address: { street, city, state, country },
       loginId,
-      password
+      password,
     };
 
+    // --- AJAX ---
     $.ajax({
       url: "/api/users/add",
       type: "POST",
       contentType: "application/json",
       data: JSON.stringify(data),
-      success: function(res) {
+      success: function (res) {
         alert("User saved successfully!");
+        $("#viewUsersBtn").show(); // show button after save
       },
-      error: function(err) {
+      error: function (err) {
         alert("Error: " + err.responseJSON.error);
-      }
+      },
     });
+  });
+
+  // --- Redirect on button click ---
+  $("#viewUsersBtn").click(function () {
+    window.location.href = "view.html";
   });
 </script>
 
