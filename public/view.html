@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>View Users</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <h2>Registered Users</h2>
+  <table border="1" id="userTable">
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Mobile</th>
+      <th>City</th>
+    </tr>
+  </table>
+
+  <script>
+    $.get("/api/users/list", function(users) {
+      users.forEach(u => {
+        $("#userTable").append(
+          `<tr>
+            <td>${u.firstName} ${u.lastName}</td>
+            <td>${u.email}</td>
+            <td>${u.mobile}</td>
+            <td>${u.address.city}</td>
+          </tr>`
+        );
+      });
+    });
+  </script>
+</body>
+</html>

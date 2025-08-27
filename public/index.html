@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Add User</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh; /* full screen height */
+      background: #f5f5f5;
+      margin: 0;
+    }
+    .form-container {
+      background: white;
+      padding: 25px 35px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 350px;
+      text-align: center;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0; /* space between inputs */
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px;
+      width: 100%;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>User Registration</h2>
+    <form id="userForm">
+      <input type="text" name="firstName" placeholder="First Name" required><br>
+      <input type="text" name="lastName" placeholder="Last Name" required><br>
+      <input type="text" name="mobile" placeholder="10 digit Mobile" required><br>
+      <input type="email" name="email" placeholder="Email" required><br>
+      <input type="text" name="street" placeholder="Street"><br>
+      <input type="text" name="city" placeholder="City"><br>
+      <input type="text" name="state" placeholder="State"><br>
+      <input type="text" name="country" placeholder="Country"><br>
+      <input type="text" name="loginId" placeholder="8 char Login ID" required><br>
+      <input type="password" name="password" placeholder="Password" required><br>
+      <button type="submit">Save</button>
+    </form>
+  </div>
+<script>
+  $("#userForm").submit(function(e) {
+    e.preventDefault();
+
+    const loginId = $("input[name=loginId]").val();
+    const password = $("input[name=password]").val();
+
+    const loginIdPattern = /^[a-zA-Z0-9]{8}$/; // exactly 8 alphanumeric
+    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{6,}$/;
+
+    if (!loginIdPattern.test(loginId)) {
+      alert("Login ID must be exactly 8 alphanumeric characters.");
+      return;
+    }
+
+    if (!passwordPattern.test(password)) {
+      alert("Password must be at least 6 characters with 1 uppercase, 1 lowercase, and 1 special character.");
+      return;
+    }
+
+    const data = {
+      firstName: $("input[name=firstName]").val(),
+      lastName: $("input[name=lastName]").val(),
+      mobile: $("input[name=mobile]").val(),
+      email: $("input[name=email]").val(),
+      address: {
+        street: $("input[name=street]").val(),
+        city: $("input[name=city]").val(),
+        state: $("input[name=state]").val(),
+        country: $("input[name=country]").val()
+      },
+      loginId,
+      password
+    };
+
+    $.ajax({
+      url: "/api/users/add",
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify(data),
+      success: function(res) {
+        alert("User saved successfully!");
+      },
+      error: function(err) {
+        alert("Error: " + err.responseJSON.error);
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
