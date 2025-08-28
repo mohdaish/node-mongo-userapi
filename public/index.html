@@ -68,7 +68,15 @@
       View Saved Users
      </button>
   </div>
+  <script src="/socket.io/socket.io.js"></script>
+
 <script>
+  const socket = io();
+
+  socket.on("connect", () => {
+    console.log("Connected with socket id:", socket.id);
+  });
+  
   $("#userForm").submit(function (e) {
     e.preventDefault();
 
@@ -146,28 +154,38 @@
       address: { street, city, state, country },
       loginId,
       password,
+      socketId: socket.id 
     };
 
     // --- AJAX ---
     $.ajax({
-      url: "/api/users/add",
-      type: "POST",
-      contentType: "application/json",
-      data: JSON.stringify(data),
-      success: function (res) {
-        alert("User saved successfully!");
-        $("#viewUsersBtn").show(); // show button after save
-      },
-      error: function (err) {
-        alert("Error: " + err.responseJSON.error);
-      },
+  url: "/api/users/add",
+  type: "POST",
+  contentType: "application/json",
+  data: JSON.stringify(data),   // send full data
+  success: function (res) {
+    alert("User saved successfully!");
+    $("#viewUsersBtn").show();
+
+    // join the "live users" room
+    $.post("/api/users/joinRoom", { 
+      socketId: socket.id, 
+      email: email, 
+      name: firstName + " " + lastName 
     });
+  },
+  error: function (err) {
+    alert("Error: " + err.responseJSON.error);
+  },
   });
 
-  // --- Redirect on button click ---
-  $("#viewUsersBtn").click(function () {
-    window.location.href = "view.html";
   });
+
+  document.getElementById("viewUsersBtn").addEventListener("click", () => {
+    // open view.html in a new tab
+    window.open("view.html", "_blank");
+  });
+
 </script>
 
 </body>

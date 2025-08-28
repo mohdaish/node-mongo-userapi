@@ -1,33 +1,64 @@
-require("dotenv").config(); // for local .env
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*" },
+});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
-// MongoDB connection
-const MONGO_URI = process.env.MONGO_URI; // <-- Set this in .env (local) and in Render dashboard (cloud)
+app.use(express.urlencoded({ extended: true })); // <-- allow form-urlencoded too if needed
+app.use(express.static(path.join(__dirname, "public")));
 
+// Local in-memory store for live users
+app.locals.liveUsers = [];
+
+// MongoDB connection
+const MONGO_URI = process.env.MONGO_URI;
 mongoose.connect(MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // Routes
-
 const userRoutes = require("./routes/user");
 app.use("/api/users", userRoutes);
 
-// Default route
-app.get("/", (req, res) => {
-    res.send("API is running...");
+// debug route to inspect sockets (optional)
+app.get('/debug/live-sockets', async (req, res) => {
+  const sockets = await io.in('live users').allSockets();
+  res.json({ sockets: Array.from(sockets), liveUsers: app.locals.liveUsers });
 });
 
-// Listen on Render's assigned port
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+// Default route
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+
+app.set("io", io);
+
+// socket.io connection/disconnect handling
+io.on("connection", (socket) => {
+  console.log("🔌 User connected:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("❌ User disconnected:", socket.id);
+
+    // remove from liveUsers
+    app.locals.liveUsers = app.locals.liveUsers.filter(u => u.socketId !== socket.id);
+
+    // broadcast updated live users list to remaining members
+    io.to("live users").emit("liveUsersUpdate", app.locals.liveUsers);
+  });
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });

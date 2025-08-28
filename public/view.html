@@ -1,33 +1,181 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>View Users</title>
+  <meta charset="utf-8" />
+  <title>Live Users</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      padding: 20px;
+      background: #f4f7fa;
+      color: #333;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 22px;
+      color: #222;
+    }
+    p { font-size: 14px; color: #666; }
+    ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    li {
+      background: #f9fbfd;
+      border: 1px solid #e4e9f2;
+      border-radius: 10px;
+      padding: 15px;
+      transition: 0.2s;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    li:hover { background: #eef5ff; border-color: #cfe2ff; }
+    .meta { font-size: 14px; margin-bottom: 10px; }
+    .meta strong { font-size: 16px; color: #0d6efd; display:block; margin-bottom:4px; }
+    .meta span { display:block; margin-bottom:4px; }
+    .btn {
+      background: #0d6efd;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 13px;
+      text-align:center;
+      display:inline-block;
+    }
+    .btn:hover { background:#0b5ed7; }
+
+    /* modal */
+    .modal {
+      display: none;
+      position: fixed;
+      left: 0; top: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+    .modal .box {
+      background: white;
+      padding: 22px;
+      border-radius: 12px;
+      width: 95%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      animation: fadeIn 0.2s ease-out;
+    }
+    .close {
+      float: right;
+      cursor: pointer;
+      font-size: 18px;
+      color: #888;
+    }
+    .profile {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .profile div {
+      margin: 8px 0;
+      padding: 8px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .profile div strong { display:block; font-size:13px; color:#666; margin-bottom:2px; }
+    @keyframes fadeIn { from {opacity:0; transform:scale(0.95);} to {opacity:1; transform:scale(1);} }
+  </style>
 </head>
 <body>
-  <h2>Registered Users</h2>
-  <table border="1" id="userTable">
-    <tr>
-      <th>Name</th>
-      <th>Email</th>
-      <th>Mobile</th>
-      <th>City</th>
-    </tr>
-  </table>
+  <div class="card">
+    <h2>👥 Live Users</h2>
+    <p>Below are users currently in the <b>live users</b> socket room.</p>
+    <ul id="liveUsersList"></ul>
+  </div>
+
+  <!-- Modal -->
+  <div id="userModal" class="modal">
+    <div class="box">
+      <span class="close" id="modalClose">✕</span>
+      <h3>User Details</h3>
+      <div id="modalBody" class="profile"></div>
+    </div>
+  </div>
 
   <script>
-    $.get("/api/users/list", function(users) {
+    const socket = io();
+
+    function renderUsers(users) {
+      const $list = $("#liveUsersList");
+      $list.empty();
+
+      if (!users || users.length === 0) {
+        $list.append("<li><em>No live users right now</em></li>");
+        return;
+      }
+
       users.forEach(u => {
-        $("#userTable").append(
-          `<tr>
-            <td>${u.firstName} ${u.lastName}</td>
-            <td>${u.email}</td>
-            <td>${u.mobile}</td>
-            <td>${u.address.city}</td>
-          </tr>`
-        );
+        const name = u.name || "-";
+        const email = u.email || "-";
+        const socketId = u.socketId || "-";
+        const userId = u.userId || "";
+
+        const $li = $(`
+          <li>
+            <div class="meta">
+              <strong>${name}</strong>
+              <span>Email: ${email}</span>
+              <small>Socket ID: ${socketId}</small>
+            </div>
+            <a href="#" class="btn view-details" data-userid="${userId}">View Details</a>
+          </li>
+        `);
+        $list.append($li);
       });
+    }
+
+    // Initial fetch
+    fetch('/api/users/liveUsers')
+      .then(r => r.json())
+      .then(data => renderUsers(data.liveUsers || []))
+      .catch(e => console.error(e));
+
+    // Listen updates
+    socket.on('liveUsersUpdate', users => renderUsers(users || []));
+
+    // Open modal
+    $(document).on('click', '.view-details', function (e) {
+      e.preventDefault();
+      const userId = $(this).data('userid');
+      if (!userId) return;
+
+      fetch(`/api/users/${userId}`)
+        .then(r => r.json())
+        .then(res => {
+          if (res.user) {
+            let html = "";
+            Object.entries(res.user).forEach(([k, v]) => {
+              html += `<div><strong>${k}</strong>${v}</div>`;
+            });
+            $('#modalBody').html(html);
+            $('#userModal').css('display', 'flex');
+          } else {
+            alert(res.error || "User not found");
+          }
+        })
+        .catch(() => alert("Error fetching user details"));
     });
+
+    // Close modal
+    $('#modalClose').on('click', () => $('#userModal').hide());
+    $('#userModal').on('click', e => { if (e.target === document.getElementById('userModal')) $('#userModal').hide(); });
   </script>
 </body>
 </html>
