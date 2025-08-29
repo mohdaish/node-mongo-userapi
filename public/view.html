@@ -48,7 +48,14 @@
     .status { font-weight: bold; }
     .online { color: green; }
     .offline { color: red; }
-    /* Simple popup */
+    /* Group heading row */
+    .group-heading {
+      background: #f1f1f1;
+      font-weight: bold;
+      cursor: default;
+      justify-content: flex-start;
+    }
+    /* Popup */
     #popup {
       position: fixed;
       top: 50%; left: 50%;
@@ -92,41 +99,55 @@
         return;
       }
 
-      allUsers.forEach(u => {
-        const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || "Unknown";
-        const email = u.email || "-";
-        const isOnline = liveUsers.some(lu => lu.userId === u._id); // match with DB id
+      // Split into online & offline
+      const onlineUsers = allUsers.filter(u => liveUsers.some(lu => lu.userId === u._id));
+      const offlineUsers = allUsers.filter(u => !liveUsers.some(lu => lu.userId === u._id));
 
-        const $li = $(`
-          <li data-id="${u._id}">
-            <div class="meta">
-              <strong>${name}</strong> | ${email}<br/>
-              <span class="status ${isOnline ? "online" : "offline"}">
-                ${isOnline ? "🟢 Online" : "🔴 Offline"}
-              </span>
-            </div>
-          </li>
-        `);
+      // Helper to render group
+      function renderGroup(users, title, statusClass, emoji) {
+        if (!users.length) return;
+        $list.append(`<li class="group-heading">${emoji} ${title}</li>`);
 
-        // On click → fetch full info & show popup
-        $li.on("click", () => {
-          fetch(`/api/users/${u._id}`)
-            .then(r => r.json())
-            .then(data => {
-              const d = data.user;
-              $("#popupContent").html(`
-                <h3>${d.firstName} ${d.lastName}</h3>
-                <p><b>Email:</b> ${d.email}</p>
-                <p><b>Mobile:</b> ${d.mobile}</p>
-                <p><b>Address:</b> ${d.address?.street}, ${d.address?.city}</p>
-                <p><b>SocketId:</b> ${isOnline ? liveUsers.find(lu => lu.userId === d._id)?.socketId : "Not connected"}</p>
-              `);
-              $("#popup").show();
-            });
+        users.forEach(u => {
+          const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || "Unknown";
+          const email = u.email || "-";
+          const isOnline = statusClass === "online";
+
+          const $li = $(`
+            <li data-id="${u._id}">
+              <div class="meta">
+                <strong>${name}</strong> | ${email}<br/>
+                <span class="status ${statusClass}">
+                  ${isOnline ? "🟢 Online" : "🔴 Offline"}
+                </span>
+              </div>
+            </li>
+          `);
+
+          // Popup on click
+          $li.on("click", () => {
+            fetch(`/api/users/${u._id}`)
+              .then(r => r.json())
+              .then(data => {
+                const d = data.user;
+                $("#popupContent").html(`
+                  <h3>${d.firstName} ${d.lastName}</h3>
+                  <p><b>Email:</b> ${d.email}</p>
+                  <p><b>Mobile:</b> ${d.mobile}</p>
+                  <p><b>Address:</b> ${d.address?.street}, ${d.address?.city}</p>
+                  <p><b>SocketId:</b> ${isOnline ? liveUsers.find(lu => lu.userId === d._id)?.socketId : "Not connected"}</p>
+                `);
+                $("#popup").show();
+              });
+          });
+
+          $list.append($li);
         });
+      }
 
-        $list.append($li);
-      });
+      // Render Online then Offline
+      renderGroup(onlineUsers, "Online Users", "online", "🟢");
+      renderGroup(offlineUsers, "Offline Users", "offline", "🔴");
     }
 
     function closePopup() {
