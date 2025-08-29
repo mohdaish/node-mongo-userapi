@@ -89,7 +89,17 @@ router.post("/joinRoom", (req, res) => {
 router.get("/liveUsers", (req, res) => {
   res.json({ liveUsers: req.app.locals.liveUsers || [] });
 });
-
+/**
+ * Get ALL registered users
+ */
+router.get("/all", async (_req, res) => {
+  try {
+    const users = await User.find({}).lean();
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 /**
  * Get full user detail by MongoDB id (used by frontend when clicking an entry)
  */

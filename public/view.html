@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Live Users</title>
+  <title>All Users</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <style>
@@ -13,7 +13,6 @@
       color: #333;
       margin: 0;
     }
-
     .card {
       background: #fff;
       padding: 25px;
@@ -23,208 +22,142 @@
       margin: 20px auto;
       border: 1px solid #ddd;
     }
-
     h2 {
       font-size: 26px;
       color: #222;
       margin-bottom: 8px;
       text-align: center;
     }
-
     p {
       margin-bottom: 20px;
       color: #555;
       text-align: center;
     }
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
+    ul { list-style: none; padding: 0; margin: 0; }
     li {
       padding: 14px 12px;
       border-bottom: 1px solid #e9e9e9;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: background 0.2s ease;
       border-radius: 6px;
-    }
-
-    li:hover {
-      background: #f7faff;
-    }
-
-    .meta {
-      font-size: 14px;
-      color: #444;
-      line-height: 1.5;
-    }
-
-    .btn {
-      background: linear-gradient(135deg, #007bff, #0056b3);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 6px;
-      text-decoration: none;
       cursor: pointer;
-      transition: transform 0.2s ease, background 0.3s ease;
-      font-size: 14px;
-      border: none;
     }
-
-    .btn:hover {
-      transform: scale(1.05);
-      background: linear-gradient(135deg, #0056b3, #004094);
-    }
-
-    /* Modal */
-    .modal {
-      display: none;
+    li:hover { background: #f7faff; }
+    .meta { font-size: 14px; color: #444; line-height: 1.5; }
+    .status { font-weight: bold; }
+    .online { color: green; }
+    .offline { color: red; }
+    /* Simple popup */
+    #popup {
       position: fixed;
-      left: 0; top: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-
-    .modal .box {
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
       background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      max-width: 600px;
-      width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-      position: relative;
       border: 1px solid #ddd;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      display: none;
+      max-width: 400px;
     }
-
-    .close {
-      position: absolute;
-      top: 10px;
-      right: 15px;
-      font-size: 22px;
-      cursor: pointer;
-      color: #666;
-      transition: color 0.3s;
-    }
-
-    .close:hover {
-      color: #000;
-    }
-
-    pre {
-      background: #f4f6f8;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      color: #333;
-      overflow-x: auto;
-      border: 1px solid #ddd;
-    }
+    #popup button { margin-top: 15px; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>Live Users</h2>
-    <p>Currently connected users in the system.</p>
-
-    <ul id="liveUsersList">
+    <h2>All Users</h2>
+    <p>Registered users with online/offline status</p>
+    <ul id="usersList">
       <li>Loading users...</li>
     </ul>
   </div>
 
-  <!-- Modal -->
-  <div id="userModal" class="modal">
-    <div class="box">
-      <span class="close" id="modalClose">&times;</span>
-      <h3>User Details</h3>
-      <div id="modalBody"></div>
-    </div>
+  <!-- Popup -->
+  <div id="popup">
+    <div id="popupContent"></div>
+    <button onclick="closePopup()">Close</button>
   </div>
 
   <script>
     const socket = io();
+    let liveUsers = [];
 
-    function renderUsers(users = []) {
-      const $list = $("#liveUsersList");
+    function renderUsers(allUsers = []) {
+      const $list = $("#usersList");
       $list.empty();
 
-      if (!users.length) {
-        $list.append("<li>No live users right now</li>");
+      if (!allUsers.length) {
+        $list.append("<li>No users registered</li>");
         return;
       }
 
-      users.forEach(u => {
-        const name = u.name || "-";
+      allUsers.forEach(u => {
+        const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || "Unknown";
         const email = u.email || "-";
-        const userId = u.userId || "-";
-        const socketId = u.socketId || "-";
+        const isOnline = liveUsers.some(lu => lu.userId === u._id); // match with DB id
 
         const $li = $(`
-          <li>
+          <li data-id="${u._id}">
             <div class="meta">
               <strong>${name}</strong> | ${email}<br/>
-              <small>User ID: ${userId} | Socket ID: ${socketId}</small>
-            </div>
-            <div>
-              <button class="btn view-details" data-userid="${userId}">View</button>
+              <span class="status ${isOnline ? "online" : "offline"}">
+                ${isOnline ? "🟢 Online" : "🔴 Offline"}
+              </span>
             </div>
           </li>
         `);
+
+        // On click → fetch full info & show popup
+        $li.on("click", () => {
+          fetch(`/api/users/${u._id}`)
+            .then(r => r.json())
+            .then(data => {
+              const d = data.user;
+              $("#popupContent").html(`
+                <h3>${d.firstName} ${d.lastName}</h3>
+                <p><b>Email:</b> ${d.email}</p>
+                <p><b>Mobile:</b> ${d.mobile}</p>
+                <p><b>Address:</b> ${d.address?.street}, ${d.address?.city}</p>
+                <p><b>SocketId:</b> ${isOnline ? liveUsers.find(lu => lu.userId === d._id)?.socketId : "Not connected"}</p>
+              `);
+              $("#popup").show();
+            });
+        });
+
         $list.append($li);
       });
     }
 
-    function fetchLiveUsers() {
-      fetch('/api/users/liveUsers')
-        .then(r => r.json())
-        .then(data => renderUsers(data.liveUsers || []))
-        .catch(err => console.error("Error fetching live users:", err));
+    function closePopup() {
+      $("#popup").hide();
     }
 
-    fetchLiveUsers();
-
-    socket.on('liveUsersUpdate', users => {
-      renderUsers(users || []);
-    });
-
-    $(document).on('click', '.view-details', function (e) {
-      e.preventDefault();
-      const userId = $(this).data('userid');
-      if (!userId) return alert("No user ID found.");
-
-      fetch(`/api/users/${userId}`)
+    function fetchAllUsers() {
+      fetch('/api/users/all')
         .then(r => r.json())
-        .then(res => {
-          if (res.user) {
-            $('#modalBody').html('<pre>' + JSON.stringify(res.user, null, 2) + '</pre>');
-            $('#userModal').css('display', 'flex');
-          } else {
-            alert(res.error || 'User not found');
-          }
-        })
-        .catch(() => alert('Error fetching user details'));
+        .then(data => renderUsers(data.users || []))
+        .catch(err => console.error("Error fetching users:", err));
+    }
+
+    // Initial load
+    fetchAllUsers();
+
+    // Live update
+    socket.on('liveUsersUpdate', users => {
+      liveUsers = users || [];
+      fetchAllUsers(); // refresh with latest status
     });
 
-    $('#modalClose').on('click', () => $('#userModal').hide());
-    $('#userModal').on('click', e => {
-      if (e.target.id === 'userModal') $('#userModal').hide();
-    });
-
+    // Send join event
     const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
     socket.on('connect', () => {
-      if (loggedInUser.email) {
+      if (loggedInUser._id) {
         socket.emit("joinLiveUsers", {
+          userId: loggedInUser._id,
           socketId: socket.id,
           email: loggedInUser.email,
-          name: `${loggedInUser.firstName || ''} ${loggedInUser.lastName || ''}`.trim(),
-          userId: loggedInUser._id
+          name: `${loggedInUser.firstName || ''} ${loggedInUser.lastName || ''}`.trim()
         });
       }
     });
