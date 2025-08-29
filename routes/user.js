@@ -104,4 +104,48 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+/**
+ * Login existing user (email + password)
+ * After login, join them into "live users" room and broadcast online users.
+ */
+router.post("/login", async (req, res) => {
+  const { email, password, socketId } = req.body || {};
+  try {
+    const user = await User.findOne({ email, password }).lean();
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const io = req.app.get("io");
+    if (socketId && io) {
+      const socket = io.sockets.sockets.get(socketId);
+      if (socket) {
+        socket.join("live users");
+
+        const liveUsers = req.app.locals.liveUsers || [];
+        const name = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+
+        liveUsers.push({
+          userId: user._id.toString(),
+          socketId,
+          email: user.email,
+          name,
+        });
+
+        // remove duplicates by socketId
+        req.app.locals.liveUsers = liveUsers.filter(
+          (u, i, self) => i === self.findIndex((t) => t.socketId === u.socketId)
+        );
+
+        io.to("live users").emit("liveUsersUpdate", req.app.locals.liveUsers);
+        console.log("✅ Login joined live users:", socketId, email, name);
+      }
+    }
+
+    res.json({ message: "Login successful", user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

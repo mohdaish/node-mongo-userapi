@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Login</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f5f5f5;
+      margin: 0;
+    }
+    .form-container {
+      background: white;
+      padding: 25px 35px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 350px;
+      text-align: center;
+    }
+    h2 { margin-bottom: 20px; }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px;
+      width: 100%;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover { background: #0056b3; }
+    .link { margin-top: 10px; display: block; }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>User Login</h2>
+    <form id="loginForm">
+      <input type="email" name="email" placeholder="Email" required><br>
+      <input type="password" name="password" placeholder="Password" required><br>
+      <button type="submit">Login</button>
+    </form>
+    <a href="index.html" class="link">Don't have an account? Register here</a>
+  </div>
+
+ <script>
+  const socket = io();
+
+  $("#loginForm").submit(function (e) {
+    e.preventDefault();
+    const email = $("input[name=email]").val();
+    const password = $("input[name=password]").val();
+
+  $.ajax({
+  url: "/api/users/login",
+  type: "POST",
+  contentType: "application/json",
+  data: JSON.stringify({ email, password }),
+  success: function (res) {
+    alert("Login successful!");
+
+    // Save user info only
+    localStorage.setItem("user", JSON.stringify(res.user));
+
+    // Redirect to view.html (socket join happens there)
+    window.location.href = "view.html";
+  },
+  error: function (err) {
+    alert(err.responseJSON?.message || "Login failed!");
+  }
+
+
+     
+    });
+  });
+</script>
+
+</body>
+</html>

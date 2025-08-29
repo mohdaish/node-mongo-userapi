@@ -36,15 +36,43 @@ app.get('/debug/live-sockets', async (req, res) => {
   const sockets = await io.in('live users').allSockets();
   res.json({ sockets: Array.from(sockets), liveUsers: app.locals.liveUsers });
 });
+// Default route - always show login first
+app.get("/login", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
 
-// Default route
+// Route for register page
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+
+// Route for view page (after login)
+app.get("/view", (req, res) => res.sendFile(path.join(__dirname, "public", "view.html")));
+
 
 app.set("io", io);
 
 // socket.io connection/disconnect handling
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
+
+ // Listen for joinLiveUsers event
+  socket.on("joinLiveUsers", (data) => {
+    socket.join("live users");
+    const { email, name, userId } = data;
+
+    // Keep track of live users
+    const liveUsers = app.locals.liveUsers || [];
+    liveUsers.push({
+      socketId: socket.id,
+      email,
+      name,
+      userId
+    });
+    app.locals.liveUsers = liveUsers.filter(
+      (u, i, self) => i === self.findIndex(t => t.socketId === u.socketId)
+    );
+
+    // Broadcast updated users list
+    io.to("live users").emit("liveUsersUpdate", app.locals.liveUsers);
+    console.log("✅ Live Users Updated:", app.locals.liveUsers);
+  });
 
   socket.on("disconnect", () => {
     console.log("❌ User disconnected:", socket.id);

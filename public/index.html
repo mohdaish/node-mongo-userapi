@@ -64,9 +64,9 @@
     
     </form>
 
-     <button id="viewUsersBtn" style="display:none; margin-top:10px;">
-      View Saved Users
-     </button>
+     <p>Already have an account? 
+       <a href="login.html">Login here</a>
+  </p>
   </div>
   <script src="/socket.io/socket.io.js"></script>
 
@@ -157,35 +157,24 @@
       socketId: socket.id 
     };
 
-    // --- AJAX ---
+    // --- AJAX Request ---
     $.ajax({
-  url: "/api/users/add",
-  type: "POST",
-  contentType: "application/json",
-  data: JSON.stringify(data),   // send full data
-  success: function (res) {
-    alert("User saved successfully!");
-    $("#viewUsersBtn").show();
+      url: "/api/users/add",
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify(data),
+      success: function (res) {
+        alert("User registered successfully! Please log in.");
 
-    // join the "live users" room
-    $.post("/api/users/joinRoom", { 
-      socketId: socket.id, 
-      email: email, 
-      name: firstName + " " + lastName 
+      
+        // Redirect to login
+        window.location.href = "login.html";
+      },
+      error: function (err) {
+        alert("Error: " + (err.responseJSON?.error || "Something went wrong"));
+      }
     });
-  },
-  error: function (err) {
-    alert("Error: " + err.responseJSON.error);
-  },
   });
-
-  });
-
-  document.getElementById("viewUsersBtn").addEventListener("click", () => {
-    // open view.html in a new tab
-    window.open("view.html", "_blank");
-  });
-
 </script>
 
 </body>
