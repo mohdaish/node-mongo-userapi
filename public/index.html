@@ -131,6 +131,12 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
+    // Auto-switch API base between local and Render
+   const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:5000/api/users"
+    : "https://node-mongo-userapi.onrender.com/api/users";
+ 
     const socket = io();
 
     socket.on("connect", () => {
@@ -165,7 +171,7 @@
   }
 
 
-      $.post("http://localhost:5000/api/users/signup", { firstName, lastName, email, mobile, loginId, password  })
+      $.post(`${API_BASE}/signup`, { firstName, lastName, email, mobile, loginId, password  })
         .done(() => {
           alert("OTPs sent to your email & mobile");
           $("#otpSection").show();
@@ -180,7 +186,7 @@
       const email = $("#email").val();
       const otp = $("#emailOtpInput").val();
 
-      $.post("http://localhost:5000/api/users/verify-otp", { email, otp })
+      $.post(`${API_BASE}/verify-otp`, { email, otp })
         .done(() => {
           alert("✅ Email OTP verified!");
           $("#mobileOtpInput").prop("disabled", false);
@@ -197,7 +203,7 @@
       const email = $("#email").val();
       const otp = $("#mobileOtpInput").val();
 
-      $.post("http://localhost:5000/api/users/verify-mobile-otp", { email, otp })
+      $.post(`${API_BASE}/verify-mobile-otp`, { email, otp })
         .done(() => {
           alert("✅ Mobile OTP verified!");
           $("#registerBtn").prop("disabled", false).css({
@@ -222,7 +228,7 @@
         return;
       }
 
-      $.post("http://localhost:5000/api/users/resend-otp", { email })
+      $.post(`${API_BASE}/resend-otp`, { email })
         .done(() => {
           alert("📩 New OTPs sent to email & mobile");
         })
@@ -246,7 +252,7 @@
       };
 
       $.ajax({
-        url: "http://localhost:5000/api/users/add",   // Final register route (MongoDB)
+        url: `${API_BASE}/add`,   // Final register route (MongoDB)
         type: "POST",
         contentType: "application/json",
         data: JSON.stringify(data),

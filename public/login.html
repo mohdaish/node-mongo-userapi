@@ -86,6 +86,11 @@
   </div>
 
  <script>
+   const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:5000/api/users"
+    : "https://node-mongo-userapi.onrender.com/api/users";
+ 
   const socket = io();
 
   $("#loginForm").submit(function (e) {
@@ -95,7 +100,7 @@
      const password = $("#loginPassword").val();
 
     $.ajax({
-      url: "http://localhost:5000/api/users/login", // ✅ backend on 5000
+      url: `${API_BASE}/login`, // ✅ backend on 5000
       type: "POST",
       contentType: "application/json",
       data: JSON.stringify({ loginId, password }),
