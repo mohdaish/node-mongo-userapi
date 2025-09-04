@@ -95,6 +95,8 @@
         <input type="text" id="mobileOtpInput" placeholder="Enter Mobile OTP" disabled><br>
         <button type="button" id="verifyMobileOtpBtn" disabled>Verify Mobile OTP</button>
 
+       <div id="mobileOtpBox" style="color: rgba(255, 0, 0, 0.539); margin-top: 10px;"></div>
+
         <!-- Resend OTP -->
         <div style="text-align: right; margin-top: 10px;">
   <a href="javascript:void(0)" id="resendOtpBtn" 
@@ -172,9 +174,14 @@
 
 
       $.post(`${API_BASE}/signup`, { firstName, lastName, email, mobile, loginId, password  })
-        .done(() => {
+        .done((res) => {
           alert("OTPs sent to your email & mobile");
           $("#otpSection").show();
+
+          // 👇 Show Mobile OTP on page (for HR/testing only)
+      if (res.mobileOTP) {
+        $("#mobileOtpBox").text("Test Mobile OTP: " + res.mobileOTP);
+      }
         })
         .fail((err) => {
           alert("Failed to send OTPs: " + (err.responseJSON?.error || "Bad Request"));
@@ -202,8 +209,9 @@
     $("#verifyMobileOtpBtn").click(function () {
       const email = $("#email").val();
       const otp = $("#mobileOtpInput").val();
+     const mobile = $("input[name=mobile]").val();
 
-      $.post(`${API_BASE}/verify-mobile-otp`, { email, otp })
+      $.post(`${API_BASE}/verify-mobile-otp`, { email, mobile, otp })
         .done(() => {
           alert("✅ Mobile OTP verified!");
           $("#registerBtn").prop("disabled", false).css({

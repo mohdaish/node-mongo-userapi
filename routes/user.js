@@ -84,6 +84,9 @@ router.post("/signup", async (req, res) => {
     };
 
     await redis.setex(`user:${email}`, 300, JSON.stringify(tempUser)); // 5 min expiry
+   
+    await redis.setex(`otp:email:${email}`, 300, otpEmail);
+    await redis.setex(`otp:mobile:${mobile}`, 300, otpMobile);
 
     // Send only email OTP (real), log mobile OTP
     await sendEmailOTP(email, otpEmail);
@@ -125,6 +128,9 @@ router.post("/resend-otp", async (req, res) => {
 
     await redis.setex(`user:${email}`, 300, JSON.stringify(userData));
 
+    await redis.setex(`otp:email:${email}`, 300, newEmailOTP);
+    await redis.setex(`otp:mobile:${userData.mobile}`, 300, newMobileOTP);
+
     await sendEmailOTP(email, newEmailOTP);
     console.log(`📱 Resent Mobile OTP for ${userData.mobile}: ${newMobileOTP}`);
 
@@ -149,18 +155,23 @@ router.post("/verify-otp", async (req, res) => {
       return res.status(400).json({ error: "Email and OTP are required" });
     }
 
+    // 1) Check OTP key (canonical)
+    const savedOtp = await redis.get(`otp:email:${email}`);
+    if (!savedOtp) return res.status(400).json({ error: "Email OTP expired or not found" });
+    if (savedOtp !== otp) return res.status(400).json({ error: "Invalid Email OTP" });
+
+    // 2) Mark verified in temp user
     const redisData = await redis.get(`user:${email}`);
-    if (!redisData) {
-      return res.status(404).json({ error: "User not found or OTP expired" });
-    }
+    if (!redisData) return res.status(404).json({ error: "User not found or expired" });
 
     const userData = JSON.parse(redisData);
-    if (userData.otpEmail !== otp) {
-      return res.status(400).json({ error: "Invalid OTP" });
-    }
-
     userData.emailVerified = true;
+
+    // refresh temp user TTL (optional)
     await redis.setex(`user:${email}`, 300, JSON.stringify(userData));
+
+    // 3) delete used OTP key
+    await redis.del(`otp:email:${email}`);
 
     return res.json({ message: "Email OTP verified", emailVerified: true });
   } catch (err) {
@@ -169,28 +180,32 @@ router.post("/verify-otp", async (req, res) => {
   }
 });
 
+
 /**
  * STEP 2b: Verify Mobile OTP
  */
 router.post("/verify-mobile-otp", async (req, res) => {
   try {
-    const { email, otp } = req.body;
-    if (!email || !otp) {
-      return res.status(400).json({ error: "Email and OTP are required" });
+    const { email, mobile, otp } = req.body;
+    if (!email || !mobile || !otp) {
+      return res.status(400).json({ error: "Email, mobile and OTP are required" });
     }
 
+    // 1) Check mobile OTP key
+    const savedOtp = await redis.get(`otp:mobile:${mobile}`);
+    if (!savedOtp) return res.status(400).json({ error: "Mobile OTP expired or not found" });
+    if (savedOtp !== otp) return res.status(400).json({ error: "Invalid Mobile OTP" });
+
+    // 2) Mark verified in temp user
     const redisData = await redis.get(`user:${email}`);
-    if (!redisData) {
-      return res.status(404).json({ error: "User not found or OTP expired" });
-    }
+    if (!redisData) return res.status(404).json({ error: "User not found or expired" });
 
     const userData = JSON.parse(redisData);
-    if (userData.otpMobile !== otp) {
-      return res.status(400).json({ error: "Invalid OTP" });
-    }
-
     userData.mobileVerified = true;
     await redis.setex(`user:${email}`, 300, JSON.stringify(userData));
+
+    // 3) delete used otp
+    await redis.del(`otp:mobile:${mobile}`);
 
     return res.json({ message: "Mobile OTP verified", mobileVerified: true });
   } catch (err) {
@@ -198,6 +213,7 @@ router.post("/verify-mobile-otp", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 /**
  * STEP 3: Final Registration
@@ -229,7 +245,11 @@ router.post("/add", async (req, res) => {
       password: userData.password, 
     });
     await newUser.save();
+
     await redis.del(`user:${email}`);
+    await redis.del(`otp:email:${email}`);
+    await redis.del(`otp:mobile:${userData.mobile}`);
+
 
     // socket.io handling (live users)
     const io = req.app.get("io");
