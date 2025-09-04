@@ -13,12 +13,6 @@ const userSchema = new mongoose.Schema({
     required: true, 
     match: /^\S+@\S+\.\S+$/ 
   },
-  address: {
-    street: String,
-    city: String,
-    state: String,
-    country: String
-  },
   loginId: { 
     type: String, 
     required: true, 

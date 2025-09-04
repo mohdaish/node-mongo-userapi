@@ -11,6 +11,9 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
 });
+const redis = require("./utils/redis"); // or however you configured it
+app.set("redis", redis);
+
 
 // Middleware
 app.use(cors());
@@ -42,8 +45,8 @@ app.get("/login", (req, res) => res.sendFile(path.join(__dirname, "public", "log
 // Route for register page
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
-// Route for view page (after login)
-app.get("/view", (req, res) => res.sendFile(path.join(__dirname, "public", "view.html")));
+// Route for admin page (after login)
+app.get("/admin", (req, res) => res.sendFile(path.join(__dirname, "public", "adminpanel.html")));
 
 
 app.set("io", io);

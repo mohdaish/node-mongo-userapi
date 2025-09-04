@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Add User</title>
+  <meta charset="utf-8">
+  <title>User Registration</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body {
@@ -9,7 +10,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh; /* full screen height */
+      height: 100vh;
       background: #f5f5f5;
       margin: 0;
     }
@@ -21,13 +22,11 @@
       width: 350px;
       text-align: center;
     }
-    h2 {
-      margin-bottom: 20px;
-    }
+    h2 { margin-bottom: 20px; }
     input {
       width: 100%;
       padding: 10px;
-      margin: 8px 0; /* space between inputs */
+      margin: 8px 0;
       border: 1px solid #ccc;
       border-radius: 5px;
     }
@@ -41,141 +40,227 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    button:hover {
-      background: #0056b3;
+    button:hover { background: #0056b3; }
+    .otp-section {
+      display: none;
+      margin-top: 15px;
     }
+    .form-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.login-text {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 14px;
+  color: #555;
+}
+
+.login-link {
+  color: #007bff;
+  font-weight: 500;
+  text-decoration: none;
+  margin-left: 5px;
+  transition: color 0.3s ease;
+}
+
+.login-link:hover {
+  color: #0056b3;
+  text-decoration: underline;
+}
+
   </style>
 </head>
 <body>
   <div class="form-container">
-    <h2>User Registration</h2>
+    <h2 class="form-title">Sign up</h2>
     <form id="userForm">
       <input type="text" name="firstName" placeholder="First Name" required><br>
       <input type="text" name="lastName" placeholder="Last Name" required><br>
+      <input type="email" name="email" id="email" placeholder="Email" required><br>
       <input type="text" name="mobile" placeholder="10 digit Mobile" required><br>
-      <input type="email" name="email" placeholder="Email" required><br>
-      <input type="text" name="street" placeholder="Street"><br>
-      <input type="text" name="city" placeholder="City"><br>
-      <input type="text" name="state" placeholder="State"><br>
-      <input type="text" name="country" placeholder="Country"><br>
-      <input type="text" name="loginId" placeholder="Login ID (8 chars)" required><br>
-      <input type="password" name="password" placeholder="Password" required><br>
-      <button type="submit">Save</button>
-    
+      <input type="text" id="loginId" placeholder="Login ID">
+      <input type="password" id="password" placeholder="Password">
+
+      <!-- OTP Section -->
+      <div class="otp-section" id="otpSection">
+        <!-- Email OTP -->
+        <input type="text" id="emailOtpInput" placeholder="Enter Email OTP"><br>
+        <button type="button" id="verifyEmailOtpBtn">Verify Email OTP</button>
+
+        <!-- Mobile OTP -->
+        <input type="text" id="mobileOtpInput" placeholder="Enter Mobile OTP" disabled><br>
+        <button type="button" id="verifyMobileOtpBtn" disabled>Verify Mobile OTP</button>
+
+        <!-- Resend OTP -->
+        <div style="text-align: right; margin-top: 10px;">
+  <a href="javascript:void(0)" id="resendOtpBtn" 
+     style="color:#007bff; text-decoration: underline; cursor:pointer; font-size:14px;">
+     Resend OTP
+  </a>
+</div>
+
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: center; margin-top: 20px;">
+  <button type="button" id="sendOtpBtn" 
+          style="padding: 10px 18px; border: none; border-radius: 6px;
+                 background: #17a2b8; color: white; font-size: 15px; 
+                 cursor: pointer; transition: 0.3s;">
+    Send OTPs
+  </button>
+
+  <button type="submit" id="registerBtn" disabled
+          style="padding: 10px 18px; border: none; border-radius: 6px;
+                 background: #6c757d; color: white; font-size: 15px; 
+                 cursor: not-allowed; opacity: 0.7; transition: 0.3s;">
+    Register
+  </button>
+</div>
+
     </form>
 
-     <p>Already have an account? 
-       <a href="login.html">Login here</a>
-  </p>
+    <p class="login-text">
+  Already have an account? 
+  <a href="login.html" class="login-link">Login</a>
+</p>
   </div>
+
   <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
 
-<script>
-  const socket = io();
-
-  socket.on("connect", () => {
-    console.log("Connected with socket id:", socket.id);
-  });
-  
-  $("#userForm").submit(function (e) {
-    e.preventDefault();
-
-    // --- Regex patterns ---
-    const namePattern = /^[A-Za-z\s]+$/;
-    const cityStateCountryPattern = /^[A-Za-z\s]*$/;
-    const streetPattern = /^[A-Za-z0-9\s.,-]*$/;
-    const loginIdPattern = /^[a-zA-Z0-9]{8}$/; // exactly 8 alphanumeric
-    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{6,}$/;
-    const mobilePattern = /^[0-9]{10}$/;
-    const emailPattern = /^\S+@\S+\.\S+$/;
-
-    // --- Values ---
-    const firstName = $("input[name=firstName]").val();
-    const lastName = $("input[name=lastName]").val();
-    const mobile = $("input[name=mobile]").val();
-    const email = $("input[name=email]").val();
-    const street = $("input[name=street]").val();
-    const city = $("input[name=city]").val();
-    const state = $("input[name=state]").val();
-    const country = $("input[name=country]").val();
-    const loginId = $("input[name=loginId]").val();
-    const password = $("input[name=password]").val();
-
-    // --- Validation ---
-    if (!namePattern.test(firstName)) {
-      alert("First name can only contain alphabets.");
-      return;
-    }
-    if (!namePattern.test(lastName)) {
-      alert("Last name can only contain alphabets.");
-      return;
-    }
-    if (!mobilePattern.test(mobile)) {
-      alert("Mobile number must be 10 digits.");
-      return;
-    }
-    if (!emailPattern.test(email)) {
-      alert("Enter a valid email.");
-      return;
-    }
-    if (street && !streetPattern.test(street)) {
-      alert("Street contains invalid characters.");
-      return;
-    }
-    if (city && !cityStateCountryPattern.test(city)) {
-      alert("City can only contain alphabets.");
-      return;
-    }
-    if (state && !cityStateCountryPattern.test(state)) {
-      alert("State can only contain alphabets.");
-      return;
-    }
-    if (country && !cityStateCountryPattern.test(country)) {
-      alert("Country can only contain alphabets.");
-      return;
-    }
-    if (!loginIdPattern.test(loginId)) {
-      alert("Login ID must be exactly 8 alphanumeric characters.");
-      return;
-    }
-    if (!passwordPattern.test(password)) {
-      alert(
-        "Password must be at least 6 characters with 1 uppercase, 1 lowercase, and 1 special character."
-      );
-      return;
-    }
-
-    // --- Data object ---
-    const data = {
-      firstName,
-      lastName,
-      mobile,
-      email,
-      address: { street, city, state, country },
-      loginId,
-      password,
-      socketId: socket.id 
-    };
-
-    // --- AJAX Request ---
-    $.ajax({
-      url: "/api/users/add",
-      type: "POST",
-      contentType: "application/json",
-      data: JSON.stringify(data),
-      success: function (res) {
-        alert("User registered successfully! Please log in.");
-
-      
-        // Redirect to login
-        window.location.href = "login.html";
-      },
-      error: function (err) {
-        alert("Error: " + (err.responseJSON?.error || "Something went wrong"));
-      }
+    socket.on("connect", () => {
+      console.log("Connected with socket id:", socket.id);
     });
-  });
-</script>
 
+    // --- Step 1: Send OTPs ---
+    $("#sendOtpBtn").click(function () {
+     const firstName = $("input[name=firstName]").val();
+     const lastName = $("input[name=lastName]").val();
+      const email = $("#email").val();
+      const mobile = $("input[name=mobile]").val();
+     const loginId = $("#loginId").val();
+     const password = $("#password").val();
+
+       if (!firstName || !lastName || !email || !mobile || !loginId || !password ) {
+             alert("Enter all details first");
+        return;
+      }
+       // ✅ Validate Login ID (exactly 8 alphanumeric)
+  const loginIdRegex = /^[a-zA-Z0-9]{8}$/;
+  if (!loginIdRegex.test(loginId)) {
+    alert("Login ID must be exactly 8 alphanumeric characters");
+    return;
+  }
+
+  // ✅ Validate Password (min 6 chars, 1 upper, 1 lower, 1 special)
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{6,}$/;
+  if (!passwordRegex.test(password)) {
+    alert("Password must be at least 6 chars with 1 uppercase, 1 lowercase, 1 special character");
+    return;
+  }
+
+
+      $.post("http://localhost:5000/api/users/signup", { firstName, lastName, email, mobile, loginId, password  })
+        .done(() => {
+          alert("OTPs sent to your email & mobile");
+          $("#otpSection").show();
+        })
+        .fail((err) => {
+          alert("Failed to send OTPs: " + (err.responseJSON?.error || "Bad Request"));
+        });
+    });
+
+    // --- Step 2a: Verify Email OTP ---
+    $("#verifyEmailOtpBtn").click(function () {
+      const email = $("#email").val();
+      const otp = $("#emailOtpInput").val();
+
+      $.post("http://localhost:5000/api/users/verify-otp", { email, otp })
+        .done(() => {
+          alert("✅ Email OTP verified!");
+          $("#mobileOtpInput").prop("disabled", false);
+          $("#verifyMobileOtpBtn").prop("disabled", false);
+          $("#verifyEmailOtpBtn").prop("disabled", true);
+        })
+        .fail(() => {
+          alert("❌ Invalid or expired Email OTP");
+        });
+    });
+
+    // --- Step 2b: Verify Mobile OTP ---
+    $("#verifyMobileOtpBtn").click(function () {
+      const email = $("#email").val();
+      const otp = $("#mobileOtpInput").val();
+
+      $.post("http://localhost:5000/api/users/verify-mobile-otp", { email, otp })
+        .done(() => {
+          alert("✅ Mobile OTP verified!");
+          $("#registerBtn").prop("disabled", false).css({
+        background: "#28a745",
+        cursor: "pointer",
+        opacity: "1"
+         });
+          $("#sendOtpBtn").hide();
+          $("#otpSection").hide();
+        })
+        .fail(() => {
+          alert("❌ Invalid or expired Mobile OTP");
+        });
+    });
+
+    // --- Resend OTP ---
+    $("#resendOtpBtn").click(function () {
+      const email = $("#email").val();
+
+      if (!email) {
+        alert("Enter your email first");
+        return;
+      }
+
+      $.post("http://localhost:5000/api/users/resend-otp", { email })
+        .done(() => {
+          alert("📩 New OTPs sent to email & mobile");
+        })
+        .fail((err) => {
+          alert("❌ Failed to resend OTPs: " + (err.responseJSON?.error || "Server error"));
+        });
+    });
+
+    // --- Step 3: Final Register User ---
+    $("#userForm").submit(function (e) {
+      e.preventDefault();
+
+      const data = {
+        firstName: $("input[name=firstName]").val(),
+        lastName: $("input[name=lastName]").val(),
+        mobile: $("input[name=mobile]").val(),
+        email: $("input[name=email]").val(),
+        loginId: $("#loginId").val(),     
+        password: $("#password").val(), 
+        socketId: socket.id,
+      };
+
+      $.ajax({
+        url: "http://localhost:5000/api/users/add",   // Final register route (MongoDB)
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify(data),
+        success: function (res) {
+          alert("✅ User registered successfully!");
+          localStorage.setItem("user", JSON.stringify(res.user));
+          window.location.href = "adminpanel.html";
+        },
+        error: function (err) {
+          alert("❌ Error: " + (err.responseJSON?.error || "Something went wrong"));
+          console.error("❌ Register error:", err);
+        },
+      });
+    });
+  </script>
 </body>
 </html>
